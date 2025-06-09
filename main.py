@@ -1,164 +1,102 @@
 import tkinter as tk
+from tkinter import ttk
 import tkintermapview
 
 playgrounds = []
 employees = []
 users = []
 
-def add_playground():
-    try:
-        name = entry_name.get().strip()
-        lat = float(entry_lat.get())
-        lon = float(entry_lon.get())
-        if not name:
-            return
-        playground = {"name": name, "lat": lat, "lon": lon}
-        playgrounds.append(playground)
-        map_widget.set_marker(lat, lon, text=name)
-        entry_name.delete(0, tk.END)
-        entry_lat.delete(0, tk.END)
-        entry_lon.delete(0, tk.END)
-        entry_name.focus()
-        update_list()
-    except ValueError:
-        print("Błąd: współrzędne muszą być liczbami")
-
-def update_list():
-    listbox.delete(0, tk.END)
-    for idx, p in enumerate(playgrounds):
-        listbox.insert(idx, f"{p['name']} ({p['lat']}, {p['lon']})")
-
-def add_employee():
-    try:
-        name = entry_emp_name.get().strip()
-        surname = entry_emp_surname.get().strip()
-        lat = float(entry_emp_lat.get())
-        lon = float(entry_emp_lon.get())
-        playground = entry_emp_playground.get().strip()
-        if not name or not surname:
-            return
-        employee = {"name": name, "surname": surname, "lat": lat, "lon": lon, "playground": playground}
-        employees.append(employee)
-        map_widget.set_marker(lat, lon, text=f"{name} {surname}")
-        entry_emp_name.delete(0, tk.END)
-        entry_emp_surname.delete(0, tk.END)
-        entry_emp_lat.delete(0, tk.END)
-        entry_emp_lon.delete(0, tk.END)
-        entry_emp_playground.delete(0, tk.END)
-        entry_emp_name.focus()
-        update_employee_list()
-    except ValueError:
-        print("Błąd: współrzędne muszą być liczbami")
-
-def update_employee_list():
-    employee_listbox.delete(0, tk.END)
-    for idx, emp in enumerate(employees):
-        employee_listbox.insert(idx, f"{emp['name']} {emp['surname']} ({emp['lat']}, {emp['lon']}) [{emp['playground']}]")
-
-def add_user():
-    try:
-        name = entry_user_name.get().strip()
-        surname = entry_user_surname.get().strip()
-        lat = float(entry_user_lat.get())
-        lon = float(entry_user_lon.get())
-        playground = entry_user_playground.get().strip()
-        if not name or not surname:
-            return
-        user = {"name": name, "surname": surname, "lat": lat, "lon": lon, "playground": playground}
-        users.append(user)
-        map_widget.set_marker(lat, lon, text=f"{name} {surname}")
-        entry_user_name.delete(0, tk.END)
-        entry_user_surname.delete(0, tk.END)
-        entry_user_lat.delete(0, tk.END)
-        entry_user_lon.delete(0, tk.END)
-        entry_user_playground.delete(0, tk.END)
-        entry_user_name.focus()
-        update_user_list()
-    except ValueError:
-        print("Błąd: współrzędne muszą być liczbami")
-
-def update_user_list():
-    user_listbox.delete(0, tk.END)
-    for idx, user in enumerate(users):
-        user_listbox.insert(idx, f"{user['name']} {user['surname']} ({user['lat']}, {user['lon']}) [{user['playground']}]")
-
 root = tk.Tk()
 root.geometry("1200x800")
-root.title("Zarządzanie danymi")
+root.title("Zarzadzanie danymi")
 
-frame_form = tk.Frame(root, padx=10, pady=10)
+selected_playground = tk.StringVar(root)
+
+
+def clear_entries(entries):
+    for entry in entries:
+        entry.delete(0, tk.END)
+    entries[0].focus()
+
+def create_entity(entry_widgets, keys, storage, label_template):
+    try:
+        values = [entry.get().strip() for entry in entry_widgets]
+        values[2] = float(values[2])
+        values[3] = float(values[3])
+        if not values[0] or not values[1]:
+            return
+        entity = dict(zip(keys, values))
+        storage.append(entity)
+        map_widget.set_marker(entity["lat"], entity["lon"], text=label_template.format(**entity))
+        clear_entries(entry_widgets)
+        return True
+    except ValueError:
+        return False
+
+def update_listbox(listbox, storage, format_func):
+    listbox.delete(0, tk.END)
+    for idx, item in enumerate(storage):
+        listbox.insert(idx, format_func(item))
+
+def add_playground():
+    if create_entity([entry_name, entry_lat, entry_lon], ["name", "lat", "lon"], playgrounds, "{name}"):
+        update_listbox(playground_listbox, playgrounds, lambda p: f"{p['name']} ({p['lat']}, {p['lon']})")
+        playground_combobox["values"] = [p["name"] for p in playgrounds]
+
+def add_employee():
+    if create_entity([entry_emp_name, entry_emp_surname, entry_emp_lat, entry_emp_lon, entry_emp_playground],
+                     ["name", "surname", "lat", "lon", "playground"], employees, "{name} {surname}"):
+        update_listbox(employee_listbox, employees, lambda e: f"{e['name']} {e['surname']} ({e['lat']}, {e['lon']}) [{e['playground']}]")
+
+def add_user():
+    if create_entity([entry_user_name, entry_user_surname, entry_user_lat, entry_user_lon, entry_user_playground],
+                     ["name", "surname", "lat", "lon", "playground"], users, "{name} {surname}"):
+        update_listbox(user_listbox, users, lambda u: f"{u['name']} {u['surname']} ({u['lat']}, {u['lon']}) [{u['playground']}]")
+
+def show_on_map(source, label_template):
+    map_widget.delete_all_marker()
+    for item in source:
+        if item["playground"] == selected_playground.get():
+            map_widget.set_marker(item["lat"], item["lon"], text=label_template.format(**item))
+
+
+frame_form = tk.Frame(root)
 frame_form.grid(row=0, column=0, sticky="nw")
 
-ramka_formularz = tk.Frame(root, padx=10, pady=10)
-ramka_formularz.grid(row=1, column=0, sticky="sw")
+frame_map = tk.Frame(root)
+frame_map.grid(row=0, column=1, rowspan=3, sticky="ne")
 
-ramka_uzytkownicy = tk.Frame(root, padx=10, pady=10)
-ramka_uzytkownicy.grid(row=2, column=0, sticky="sw")
+entry_emp_name = tk.Entry(frame_form); tk.Label(frame_form, text="Imie:").grid(row=0, column=0); entry_emp_name.grid(row=0, column=1)
+entry_emp_surname = tk.Entry(frame_form); tk.Label(frame_form, text="Nazwisko:").grid(row=1, column=0); entry_emp_surname.grid(row=1, column=1)
+entry_emp_lat = tk.Entry(frame_form); tk.Label(frame_form, text="Szerokosc (lat):").grid(row=2, column=0); entry_emp_lat.grid(row=2, column=1)
+entry_emp_lon = tk.Entry(frame_form); tk.Label(frame_form, text="Dlugosc (lon):").grid(row=3, column=0); entry_emp_lon.grid(row=3, column=1)
+entry_emp_playground = tk.Entry(frame_form); tk.Label(frame_form, text="Plac zabaw:").grid(row=4, column=0); entry_emp_playground.grid(row=4, column=1)
+tk.Button(frame_form, text="Dodaj pracownika", command=add_employee).grid(row=5, column=0, columnspan=2)
+employee_listbox = tk.Listbox(frame_form, width=50, height=5)
+employee_listbox.grid(row=6, column=0, columnspan=2)
 
-ramka_mapa = tk.Frame(root, padx=10, pady=10)
-ramka_mapa.grid(row=0, column=1, rowspan=3, sticky="ne")
+entry_name = tk.Entry(frame_form); tk.Label(frame_form, text="Nazwa placu:").grid(row=7, column=0); entry_name.grid(row=7, column=1)
+entry_lat = tk.Entry(frame_form); tk.Label(frame_form, text="Szerokosc (lat):").grid(row=8, column=0); entry_lat.grid(row=8, column=1)
+entry_lon = tk.Entry(frame_form); tk.Label(frame_form, text="Dlugosc (lon):").grid(row=9, column=0); entry_lon.grid(row=9, column=1)
+tk.Button(frame_form, text="Dodaj plac", command=add_playground).grid(row=10, column=0, columnspan=2)
+playground_listbox = tk.Listbox(frame_form, width=50, height=5)
+playground_listbox.grid(row=11, column=0, columnspan=2)
 
-# Pracownicy
-tk.Label(frame_form, text="Dodaj pracownika", font=("Helvetica", 14)).grid(row=0, column=0, columnspan=2)
-tk.Label(frame_form, text="Imię:").grid(row=1, column=0, sticky=tk.W)
-entry_emp_name = tk.Entry(frame_form)
-entry_emp_name.grid(row=1, column=1)
-tk.Label(frame_form, text="Nazwisko:").grid(row=2, column=0, sticky=tk.W)
-entry_emp_surname = tk.Entry(frame_form)
-entry_emp_surname.grid(row=2, column=1)
-tk.Label(frame_form, text="Szerokość (lat):").grid(row=3, column=0, sticky=tk.W)
-entry_emp_lat = tk.Entry(frame_form)
-entry_emp_lat.grid(row=3, column=1)
-tk.Label(frame_form, text="Długość (lon):").grid(row=4, column=0, sticky=tk.W)
-entry_emp_lon = tk.Entry(frame_form)
-entry_emp_lon.grid(row=4, column=1)
-tk.Label(frame_form, text="Plac zabaw:").grid(row=5, column=0, sticky=tk.W)
-entry_emp_playground = tk.Entry(frame_form)
-entry_emp_playground.grid(row=5, column=1)
-tk.Button(frame_form, text="Dodaj pracownika", command=add_employee).grid(row=6, column=0, columnspan=2, pady=10)
-tk.Label(frame_form, text="Lista pracowników:").grid(row=7, column=0, columnspan=2)
-employee_listbox = tk.Listbox(frame_form, width=50, height=6)
-employee_listbox.grid(row=8, column=0, columnspan=2)
+entry_user_name = tk.Entry(frame_form); tk.Label(frame_form, text="Imie:").grid(row=12, column=0); entry_user_name.grid(row=12, column=1)
+entry_user_surname = tk.Entry(frame_form); tk.Label(frame_form, text="Nazwisko:").grid(row=13, column=0); entry_user_surname.grid(row=13, column=1)
+entry_user_lat = tk.Entry(frame_form); tk.Label(frame_form, text="Szerokosc (lat):").grid(row=14, column=0); entry_user_lat.grid(row=14, column=1)
+entry_user_lon = tk.Entry(frame_form); tk.Label(frame_form, text="Dlugosc (lon):").grid(row=15, column=0); entry_user_lon.grid(row=15, column=1)
+entry_user_playground = tk.Entry(frame_form); tk.Label(frame_form, text="Plac zabaw:").grid(row=16, column=0); entry_user_playground.grid(row=16, column=1)
+tk.Button(frame_form, text="Dodaj uzytkownika", command=add_user).grid(row=17, column=0, columnspan=2)
+user_listbox = tk.Listbox(frame_form, width=50, height=5)
+user_listbox.grid(row=18, column=0, columnspan=2)
 
-# Place zabaw
-tk.Label(ramka_formularz, text="Dodaj plac zabaw", font=("Helvetica", 14)).grid(row=0, column=0, columnspan=2)
-tk.Label(ramka_formularz, text="Nazwa placu:").grid(row=1, column=0, sticky=tk.W)
-entry_name = tk.Entry(ramka_formularz)
-entry_name.grid(row=1, column=1)
-tk.Label(ramka_formularz, text="Szerokość (lat):").grid(row=2, column=0, sticky=tk.W)
-entry_lat = tk.Entry(ramka_formularz)
-entry_lat.grid(row=2, column=1)
-tk.Label(ramka_formularz, text="Długość (lon):").grid(row=3, column=0, sticky=tk.W)
-entry_lon = tk.Entry(ramka_formularz)
-entry_lon.grid(row=3, column=1)
-tk.Button(ramka_formularz, text="Dodaj plac", command=add_playground).grid(row=4, column=0, columnspan=2, pady=10)
-tk.Label(ramka_formularz, text="Lista placów zabaw:").grid(row=5, column=0, columnspan=2)
-listbox = tk.Listbox(ramka_formularz, width=40, height=6)
-listbox.grid(row=6, column=0, columnspan=2)
+playground_combobox = ttk.Combobox(frame_form, textvariable=selected_playground)
+playground_combobox.grid(row=19, column=0, columnspan=2)
+tk.Button(frame_form, text="Pokaż pracownikow placu", command=lambda: show_on_map(employees, "{name} {surname}")).grid(row=20, column=0, columnspan=2)
+tk.Button(frame_form, text="Pokaż uzytkownikow placu", command=lambda: show_on_map(users, "{name} {surname}")).grid(row=21, column=0, columnspan=2)
 
-# Użytkownicy
-tk.Label(ramka_uzytkownicy, text="Dodaj użytkownika", font=("Helvetica", 14)).grid(row=0, column=0, columnspan=2)
-tk.Label(ramka_uzytkownicy, text="Imię:").grid(row=1, column=0, sticky=tk.W)
-entry_user_name = tk.Entry(ramka_uzytkownicy)
-entry_user_name.grid(row=1, column=1)
-tk.Label(ramka_uzytkownicy, text="Nazwisko:").grid(row=2, column=0, sticky=tk.W)
-entry_user_surname = tk.Entry(ramka_uzytkownicy)
-entry_user_surname.grid(row=2, column=1)
-tk.Label(ramka_uzytkownicy, text="Szerokość (lat):").grid(row=3, column=0, sticky=tk.W)
-entry_user_lat = tk.Entry(ramka_uzytkownicy)
-entry_user_lat.grid(row=3, column=1)
-tk.Label(ramka_uzytkownicy, text="Długość (lon):").grid(row=4, column=0, sticky=tk.W)
-entry_user_lon = tk.Entry(ramka_uzytkownicy)
-entry_user_lon.grid(row=4, column=1)
-tk.Label(ramka_uzytkownicy, text="Plac zabaw:").grid(row=5, column=0, sticky=tk.W)
-entry_user_playground = tk.Entry(ramka_uzytkownicy)
-entry_user_playground.grid(row=5, column=1)
-tk.Button(ramka_uzytkownicy, text="Dodaj użytkownika", command=add_user).grid(row=6, column=0, columnspan=2, pady=10)
-tk.Label(ramka_uzytkownicy, text="Lista użytkowników:").grid(row=7, column=0, columnspan=2)
-user_listbox = tk.Listbox(ramka_uzytkownicy, width=50, height=6)
-user_listbox.grid(row=8, column=0, columnspan=2)
-
-map_widget = tkintermapview.TkinterMapView(ramka_mapa, width=800, height=600, corner_radius=0)
+map_widget = tkintermapview.TkinterMapView(frame_map, width=800, height=600, corner_radius=0)
 map_widget.pack()
 map_widget.set_position(52.23, 21.01)
 map_widget.set_zoom(6)
